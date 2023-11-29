@@ -97,8 +97,8 @@ public:
       outcome_ = std::move(ex.outcome());
     } catch (...) {
       std::cout << "Unknown exception." << std::endl;
-      outcome_ = std::unexpected{
-          cotry::ExceptionConverter<E>::from(std::current_exception())};
+      outcome_ = std::unexpected{cotry::ExceptionConverter<E>::from_exception(
+          std::current_exception())};
     }
   }
 
