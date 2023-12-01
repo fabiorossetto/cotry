@@ -1,16 +1,5 @@
 # `co_try` - Rust `try!` macro in C++
-`co_try` lets you use `std::expected` similar to how you'd use `Result` in Rust. Simply include the header and write:
-```c++
-#include <cotry/cotry.hpp>
-
-std::expected<image, fail_reason> get_cute_cat(const image& img) {
-    auto cropped = co_try crop_to_cat(img);
-    auto with_tie = co_try add_bow_tie(cropped);
-    auto with_sparkles = co_try make_eyes_sparkle(with_tie);
-    co_return add_rainbox(make_smaller(with_sparkles));
-}
-```
-instead of
+With `co_try` you can use `std::expected` as you'd use `Result` in Rust. Simply include the header and replace code like this:
 ```c++
 std::expected<image,fail_reason> get_cute_cat (const image& img) {
     auto cropped = crop_to_cat(img);
@@ -29,6 +18,17 @@ std::expected<image,fail_reason> get_cute_cat (const image& img) {
     }
 
     return add_rainbow(make_smaller(*with_sparkles));
+}
+```
+with this:
+```c++
+#include <cotry/cotry.hpp>
+
+std::expected<image, fail_reason> get_cute_cat(const image& img) {
+    auto cropped = co_try crop_to_cat(img);
+    auto with_tie = co_try add_bow_tie(cropped);
+    auto with_sparkles = co_try make_eyes_sparkle(with_tie);
+    co_return add_rainbox(make_smaller(with_sparkles));
 }
 ```
 
