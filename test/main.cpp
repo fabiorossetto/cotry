@@ -9,7 +9,10 @@
 #include <system_error>
 #include <variant>
 
-template <typename T> using outcome = std::expected<T, std::string>;
+template <typename T>
+using outcome = std::expected<T, std::string>;
+
+static_assert(cotry::CotryMonad<outcome<int>>);
 
 // static_assert(cotry::CotryMonad<outcome<int>>);
 
@@ -18,14 +21,14 @@ template <> struct ExceptionConverter<std::string> {
   static std::string from_exception(const std::exception_ptr &ptr) {
     try {
       std::rethrow_exception(ptr);
-    } catch (std::exception &ex) {
+    } catch (std::exception& ex) {
       return ex.what();
     } catch (...) {
       return "unknown exception";
     }
   }
 };
-} // namespace cotry
+}  // namespace cotry
 
 outcome<int> f1() {
   std::cout << "f1" << std::endl;
