@@ -1,6 +1,7 @@
 #include <__concepts/same_as.h>
 #include <__expected/unexpect.h>
 #include <__expected/unexpected.h>
+#include <cassert>
 #include <coroutine>
 #include <exception>
 #include <expected>
@@ -24,47 +25,47 @@ std::ostream& operator<<(std::ostream& out, std::expected<T, E>& expected) {
   return out;
 }
 
-template <typename MonadT>
-struct MonadTrait;
+template <typename MaybeT>
+struct MaybeTrait;
 
-template <typename MonadT>
+template <typename MaybeT>
 using ValueOf =
-    std::decay_t<decltype(MonadTrait<MonadT>::value(std::declval<MonadT&&>()))>;
+    std::decay_t<decltype(MaybeTrait<MaybeT>::value(std::declval<MaybeT&&>()))>;
 
-template <typename MonadT>
-concept CotryMonad = std::is_nothrow_move_assignable_v<MonadT> &&
-                     std::is_nothrow_move_constructible_v<MonadT> &&
-                     requires(const MonadT& monad) {
+template <typename MaybeT>
+concept CotryMaybe = std::is_nothrow_move_assignable_v<MaybeT> &&
+                     std::is_nothrow_move_constructible_v<MaybeT> &&
+                     requires(const MaybeT& maybe) {
                        {
-                         MonadTrait<MonadT>::has_value(monad)
+                         MaybeTrait<MaybeT>::has_value(maybe)
                        } -> std::same_as<bool>;
                      } &&
                      requires(
-                         MonadT&& monad,
-                         ValueOf<MonadT>&& value,
+                         MaybeT&& maybe,
+                         ValueOf<MaybeT>&& value,
                          const std::exception_ptr& ptr) {
-                       { MonadTrait<MonadT>::value(std::move(monad)) };
+                       { MaybeTrait<MaybeT>::value(std::move(maybe)) };
                        {
-                         MonadTrait<MonadT>::from_value(std::move(value))
-                       } -> std::same_as<MonadT>;
+                         MaybeTrait<MaybeT>::from_value(std::move(value))
+                       } -> std::same_as<MaybeT>;
                        {
-                         MonadTrait<MonadT>::from_exception(ptr)
-                       } -> std::same_as<MonadT>;
+                         MaybeTrait<MaybeT>::from_exception(ptr)
+                       } -> std::same_as<MaybeT>;
                      };
 
-template <CotryMonad OutcomeT>
-struct CotryTransportMonad : public std::exception {
-  explicit CotryTransportMonad(OutcomeT&& outcome)
+template <CotryMaybe OutcomeT>
+struct CotryTransportMaybe : public std::exception {
+  explicit CotryTransportMaybe(OutcomeT&& outcome)
       : outcome{std::move(outcome)} {
   }
 
   OutcomeT outcome;
 };
 
-template <CotryMonad OutcomeT>
+template <CotryMaybe OutcomeT>
 class CotryPromise;
 
-template <CotryMonad OutcomeT>
+template <CotryMaybe OutcomeT>
 class CotryReturnObject {
 public:
   explicit CotryReturnObject(
@@ -84,7 +85,7 @@ private:
   std::coroutine_handle<CotryPromise<OutcomeT>> handle_;
 };
 
-template <CotryMonad OutcomeT>
+template <CotryMaybe OutcomeT>
 class CotryAwaiter {
 public:
   explicit CotryAwaiter(OutcomeT&& outcome)
@@ -101,17 +102,17 @@ public:
   }
 
   ValueOf<OutcomeT> await_resume() {
-    if (MonadTrait<OutcomeT>::has_value(outcome_)) {
-      return MonadTrait<OutcomeT>::value(std::move(outcome_));
+    if (MaybeTrait<OutcomeT>::has_value(outcome_)) {
+      return MaybeTrait<OutcomeT>::value(std::move(outcome_));
     }
-    throw CotryTransportMonad{std::move(outcome_)};
+    throw CotryTransportMaybe{std::move(outcome_)};
   }
 
 private:
   OutcomeT outcome_;
 };
 
-template <CotryMonad OutcomeT>
+template <CotryMaybe OutcomeT>
 class CotryPromise {
 public:
   CotryReturnObject<OutcomeT> get_return_object() {
@@ -129,19 +130,19 @@ public:
 
   void return_value(ValueOf<OutcomeT>&& value) {
     std::cout << "return_value: " << value << std::endl;
-    outcome_ = MonadTrait<OutcomeT>::from_value(std::move(value));
+    outcome_ = MaybeTrait<OutcomeT>::from_value(std::move(value));
   }
 
   void unhandled_exception() {
     std::cout << "unhandled_exception!" << std::endl;
     try {
       std::rethrow_exception(std::current_exception());
-    } catch (CotryTransportMonad<OutcomeT>& ex) {
+    } catch (CotryTransportMaybe<OutcomeT>& ex) {
       std::cout << "Ok transport outcome." << std::endl;
       outcome_ = std::move(ex.outcome);
     } catch (...) {
       std::cout << "Unknown exception." << std::endl;
-      outcome_ = MonadTrait<OutcomeT>::from_exception(std::current_exception());
+      outcome_ = MaybeTrait<OutcomeT>::from_exception(std::current_exception());
     }
   }
 
@@ -156,22 +157,24 @@ public:
   }
 
   OutcomeT& outcome() {
-    return outcome_;
+    assert(outcome_.has_value());
+    return outcome_.value();
   }
 
   const OutcomeT& outcome() const {
-    return outcome_;
+    assert(outcome_.has_value());
+    return outcome_.value();
   }
 
 private:
-  OutcomeT outcome_;
+  std::optional<OutcomeT> outcome_;
 };
 
 template <typename E>
 struct ExceptionConverter;
 
 template <typename T>
-struct MonadTrait<std::optional<T>> {
+struct MaybeTrait<std::optional<T>> {
   static T value(std::optional<T>&& optional) {
     return optional.value();
   }
@@ -188,7 +191,7 @@ struct MonadTrait<std::optional<T>> {
 };
 
 template <typename T, typename E>
-struct MonadTrait<std::expected<T, E>> {
+struct MaybeTrait<std::expected<T, E>> {
   static T value(std::expected<T, E>&& expected) {
     return expected.value();
   }
@@ -205,12 +208,12 @@ struct MonadTrait<std::expected<T, E>> {
 }  // namespace cotry
 
 namespace std {
-template <cotry::CotryMonad OutcomeT, typename... Args>
+template <cotry::CotryMaybe OutcomeT, typename... Args>
 struct coroutine_traits<OutcomeT, Args...> {
   using promise_type = cotry::CotryPromise<OutcomeT>;
 };
 
-template <cotry::CotryMonad OutcomeT, typename... Args>
+template <cotry::CotryMaybe OutcomeT, typename... Args>
 struct coroutine_traits<cotry::CotryReturnObject<OutcomeT>, Args...> {
   using promise_type = cotry::CotryPromise<OutcomeT>;
 };
