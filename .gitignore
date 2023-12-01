@@ -33,4 +33,10 @@
 
 build/*
 .cache/*
+.vscode/*
 compile_commands.json
+
+# TODO remove
+.clang-format
+.clang-tidy
+todo.md
