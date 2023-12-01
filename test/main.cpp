@@ -1,4 +1,6 @@
 #include "cotry/cotry.hpp"
+#include <__expected/expected.h>
+#include <cassert>
 #include <coroutine>
 #include <exception>
 #include <expected>
@@ -12,23 +14,38 @@
 template <typename T>
 using outcome = std::expected<T, std::string>;
 
-static_assert(cotry::CotryMonad<outcome<int>>);
+namespace cotry {
+template <typename T>
+struct MaybeTrait<std::expected<T, std::string>>
+    : public MaybeTraitExpected<T, std::string> {
+
+  static std::expected<T, std::string> from_exception(
+      const std::exception_ptr& ptr);
+};
+}  // namespace cotry
+
+void f() {
+  cotry::MaybeTrait<std::expected<int, std::string>>::from_value(4);
+}
+
+static_assert(cotry::CotryMaybe<outcome<int>>);
 
 // static_assert(cotry::CotryMonad<outcome<int>>);
 
-namespace cotry {
-template <> struct ExceptionConverter<std::string> {
-  static std::string from_exception(const std::exception_ptr &ptr) {
-    try {
-      std::rethrow_exception(ptr);
-    } catch (std::exception& ex) {
-      return ex.what();
-    } catch (...) {
-      return "unknown exception";
-    }
-  }
-};
-}  // namespace cotry
+// namespace cotry {
+// template <>
+// struct ExceptionConverter<std::string> {
+//   static std::string from_exception(const std::exception_ptr& ptr) {
+//     try {
+//       std::rethrow_exception(ptr);
+//     } catch (std::exception& ex) {
+//       return ex.what();
+//     } catch (...) {
+//       return "unknown exception";
+//     }
+//   }
+// };
+// }  // namespace cotry
 
 outcome<int> f1() {
   std::cout << "f1" << std::endl;

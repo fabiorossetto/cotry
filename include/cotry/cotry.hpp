@@ -170,9 +170,6 @@ private:
   std::optional<OutcomeT> outcome_;
 };
 
-template <typename E>
-struct ExceptionConverter;
-
 template <typename T>
 struct MaybeTrait<std::optional<T>> {
   static T value(std::optional<T>&& optional) {
@@ -191,7 +188,7 @@ struct MaybeTrait<std::optional<T>> {
 };
 
 template <typename T, typename E>
-struct MaybeTrait<std::expected<T, E>> {
+struct MaybeTraitExpected {
   static T value(std::expected<T, E>&& expected) {
     return expected.value();
   }
@@ -199,10 +196,7 @@ struct MaybeTrait<std::expected<T, E>> {
     return expected.has_value();
   }
   static std::expected<T, E> from_value(T&& value) {
-    return std::move(value);
-  }
-  static std::expected<T, E> from_exception(const std::exception_ptr& ptr) {
-    return std::unexpected(ExceptionConverter<E>::from_exception(ptr));
+    return std::forward<T>(value);
   }
 };
 }  // namespace cotry
